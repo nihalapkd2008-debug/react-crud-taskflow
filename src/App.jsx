@@ -1,77 +1,60 @@
 
 import { useEffect, useState } from "react";
+import axios from "axios";
 
 function App() {
   const [tasks, setTasks] = useState([]);
   const [title, setTitle] = useState("");
 
-  // READ: Fetch all tasks
+  const API_URL = "http://localhost:3000/tasks";
+
+  // READ - Fetch all tasks
   useEffect(() => {
-    fetch("http://localhost:3000/tasks")
+    axios
+      .get(API_URL)
       .then((response) => {
-        if (!response.ok) {
-          throw new Error("Failed to fetch tasks");
-        }
-        return response.json();
+        setTasks(response.data);
       })
-      .then((data) => setTasks(data))
-      .catch((error) => console.error("Fetch error:", error));
+      .catch((error) => {
+        console.error("Fetch error:", error);
+      });
   }, []);
 
-  // CREATE: Add a new task
+  // CREATE - Add a new task
   async function addTask() {
-    if (!title.trim()) return;
+    if (!title.trim()) {
+      alert("Please enter a task");
+      return;
+    }
 
     try {
-      const response = await fetch("http://localhost:3000/tasks", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          title: title.trim(),
-          completed: false,
-        }),
+      const response = await axios.post(API_URL, {
+        title: title.trim(),
+        completed: false,
       });
 
-      if (!response.ok) {
-        throw new Error("Failed to add task");
-      }
+      setTasks((previousTasks) => [
+        ...previousTasks,
+        response.data,
+      ]);
 
-      const newTask = await response.json();
-
-      setTasks((previousTasks) => [...previousTasks, newTask]);
       setTitle("");
     } catch (error) {
       console.error("Add task error:", error);
     }
   }
 
-  // UPDATE: Mark a task as completed
+  // UPDATE - Mark task as completed
   async function markCompleted(task) {
     try {
-      const response = await fetch(
-        `http://localhost:3000/tasks/${task.id}`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            completed: true,
-          }),
-        }
+      const response = await axios.patch(
+        `${API_URL}/${task.id}`,
+        { completed: true }
       );
-
-      if (!response.ok) {
-        throw new Error("Failed to update task");
-      }
-
-      const updatedTask = await response.json();
 
       setTasks((previousTasks) =>
         previousTasks.map((item) =>
-          item.id === updatedTask.id ? updatedTask : item
+          item.id === task.id ? response.data : item
         )
       );
     } catch (error) {
@@ -79,19 +62,10 @@ function App() {
     }
   }
 
-  // DELETE: Remove a task
+  // DELETE - Remove a task
   async function deleteTask(id) {
     try {
-      const response = await fetch(
-        `http://localhost:3000/tasks/${id}`,
-        {
-          method: "DELETE",
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to delete task");
-      }
+      await axios.delete(`${API_URL}/${id}`);
 
       setTasks((previousTasks) =>
         previousTasks.filter((task) => task.id !== id)
@@ -115,23 +89,28 @@ function App() {
 
       <button onClick={addTask}>Add Task</button>
 
-      {tasks.map((task) => (
-        <div key={task.id}>
-          <span>
-            {task.title} - {task.completed ? "Completed" : "Pending"}
-          </span>
+      {tasks.length === 0 ? (
+        <p>No tasks available</p>
+      ) : (
+        tasks.map((task) => (
+          <div key={task.id}>
+            <span>
+              {task.title} -{" "}
+              {task.completed ? "Completed" : "Pending"}
+            </span>
 
-          {!task.completed && (
-            <button onClick={() => markCompleted(task)}>
-              Mark Completed
+            {!task.completed && (
+              <button onClick={() => markCompleted(task)}>
+                Mark Completed
+              </button>
+            )}
+
+            <button onClick={() => deleteTask(task.id)}>
+              Delete
             </button>
-          )}
-
-          <button onClick={() => deleteTask(task.id)}>
-            Delete
-          </button>
-        </div>
-      ))}
+          </div>
+        ))
+      )}
     </div>
   );
 }
